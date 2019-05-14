@@ -1,19 +1,10 @@
 from bs4 import BeautifulSoup
 import pandas as pd
+import re
 import numpy as np
 from datetime import date, timedelta, datetime
 import time
 import requests
-
-
-origin = 'BER'
-destination = 'BCN'
-start_date = '2019-07-10'
-
-headers = {
-    'User-Agent': "Firefox/66.0.3"
-}
-
 
 
 def getProxies():
@@ -47,51 +38,89 @@ def getWorkingProxy():
 # }
 
 
-url = f'https://www.kayak.pl/flights/{origin}-{destination}/{start_date}?sort=bestflight_a&fs=stops=0'
+def scrape(origin, destination, date, headers):
 
-# r = requests.get(url, headers=headers)
+    url = f'https://www.kayak.pl/flights/{origin}-{destination}/{date}?sort=bestflight_a&fs=stops=0'
+    print(url)
 
-# with open('request.html', 'w', encoding='utf-8') as f:
-#     f.write(r.text)
+    r = requests.get(url, headers=headers)
 
-r = ''
+    with open(f'requests/request-{origin}-{destination}-{date}.html', 'w', encoding='utf-8') as f:
+        f.write(r.text)
 
-with open('request.html', 'r', encoding='utf-8') as f:
-    r = f.read()
+    # r = ''
+    #
+    # with open('request.html', 'r', encoding='utf-8') as f:
+    #     r = f.read()
 
-soup = BeautifulSoup(r, 'lxml')
-
-if soup.find_all('p')[0].getText() == "Please confirm that you are a real KAYAK user.":
-    print('BOT ERROR')
-
-else:
+    soup = BeautifulSoup(r.text, 'lxml')
+    if soup.find_all('p')[0].getText() == "Please confirm that you are a real KAYAK user.":
+        print('BOT ERROR')
+    #
+    # else:
     prices = list()
-
-    departure_times_dirty = soup.find_all('span', attrs={'class': 'depart-time base-time'})
-    arrival_times_dirty = soup.find_all('span', attrs={'class': 'arrival-time base-time'})
-    prices_list = soup.find_all('div', attrs={'class': 'Common-Booking-MultiBookProvider featured-provider cheapest multi-row Theme-featured-large'})
+    operators = list()
+    iata_origin = list()
+    iata_destination = list()
 
     departure_times = [departure_time.text for departure_time in soup.find_all('span', attrs={'class': 'depart-time base-time'})]
     arrival_times = [arrival_time.text for arrival_time in soup.find_all('span', attrs={'class': 'arrival-time base-time'})]
 
-    for price in prices_list:
-        price = price.find('span', attrs={'class': 'price option-text'})
+    regex = re.compile('Common-Booking-MultiBookProvider (.*)multi-row Theme-featured-large(.*)')
+    for price in soup.find_all('div', attrs={'class': regex}):
+        price = price.find('span', attrs={'class': 'price option-text'}).text[1:]
+        prices.append(price)
 
-        text = price.text
-        currency = text[-3:-1]
-        text = text[1:-2][:-2]
+    # for price in soup.find_all('div', attrs={'class': 'Common-Booking-MultiBookProvider featured-provider cheapest multi-row Theme-featured-large'}):
+    #     price = price.find('span', attrs={'class': 'price option-text'}).text
+    #     currency = price[-3:-1]
+    #     price = price[1:-2][:-2]
+    #
+    #     prices.append(f'{price} {currency}')
 
-        prices.append(f'{text} {currency}')
+    for operator in soup.find_all('div', attrs={'class': 'section times'}):
+        operators.append(operator.find('div', attrs={'class': 'bottom'}).text)
 
-data = {
-    'origin': origin,
-    'destination': destination,
-    'date': start_date,
-    'departure_time': departure_times,
-    'arrival_time': arrival_times,
-    'price': prices
-}
+    for iata in soup.find_all('div', attrs={'class': 'section duration'}):
+        iata_origin.append(iata.find('div', attrs={'class': 'bottom'}).find('span').text)
 
-df = pd.DataFrame(data)
+    for iata in soup.find_all('div', attrs={'class': 'section duration'}):
+        iata_destination.append(iata.find('div', attrs={'class': 'bottom'}).find_all('span')[2].text)
 
-print(df)
+    data = {
+        'origin': iata_origin,
+        'destination': iata_destination,
+        'date': date,
+        'departure_time': departure_times,
+        'arrival_time': arrival_times,
+        'price': prices,
+        'operator': operators
+    }
+
+    df = pd.DataFrame(data)
+
+    print(df)
+
+
+# origin = 'BER'
+# destination = 'BCN'
+# date = '2019-07-10'
+
+origins = ['BER', 'WRO', 'POZ']
+destinations = ['BCN', 'LON']
+dates = ['2019-09-01', '2019-09-02']
+
+
+agents = ["Firefox/66.0.3", "Chrome/73.0.3683.68", "Edge/16.16299"]
+
+requests_count = 0
+
+for origin in origins:
+    for destination in destinations:
+        for date in dates:
+            headers = {
+                'User-Agent': agents[requests_count % len(agents)]
+            }
+            requests_count += 1
+            scrape(origin, destination, date, headers)
+            time.sleep(15)
