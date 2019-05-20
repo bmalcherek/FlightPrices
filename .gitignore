@@ -70,3 +70,13 @@ fabric.properties
 
 venv/
 requests/
+.idea/dataSources.xml
+.idea/inspectionProfiles/Project_Default.xml
+.idea/sqldialects.xml
+__pycache__/
+chromedriver.exe
+db/
+proxy_test.py
+scraper_powrotny.py
+
+
