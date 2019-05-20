@@ -69,7 +69,7 @@ fabric.properties
 .idea/caches/build_file_checksums.ser
 
 venv/
-requests/
+requests/*
 .idea/dataSources.xml
 .idea/inspectionProfiles/Project_Default.xml
 .idea/sqldialects.xml
@@ -78,5 +78,5 @@ chromedriver.exe
 db/
 proxy_test.py
 scraper_powrotny.py
-
+tests.py
 
